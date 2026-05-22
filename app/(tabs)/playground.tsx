@@ -2,59 +2,77 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withDecay,
-  cancelAnimation,
+  useFrameCallback,
 } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 const PLAYGROUND_W = 300;
 const PLAYGROUND_H = 520;
 const BALL_RADIUS = 28;
 
-const DECELERATION = 0.996;
-const BOUNCE_COEFF = 0.6;
-const MIN_VELOCITY = 50;
 const VELOCITY_THRESHOLD = 200;
+const BOUNCE_FRICTION = 0.8;
+const DRAG_FACTOR = 0.995;
+const STOP_THRESHOLD = 2;
 
 const L_BOUND = BALL_RADIUS;
 const R_BOUND = PLAYGROUND_W - BALL_RADIUS;
 const T_BOUND = BALL_RADIUS;
 const B_BOUND = PLAYGROUND_H - BALL_RADIUS;
 
-function throwAxis(
-  value: SharedValue<number>,
-  velocity: number,
-  min: number,
-  max: number,
-) {
-  'worklet';
-  if (Math.abs(velocity) < MIN_VELOCITY) return;
-
-  value.value = withDecay(
-    {
-      velocity,
-      clamp: [min, max],
-      deceleration: DECELERATION,
-    },
-    (finished) => {
-      if (!finished) return;
-      const atWall = value.value <= min + 1 || value.value >= max - 1;
-      if (atWall) throwAxis(value, -velocity * BOUNCE_COEFF, min, max);
-    },
-  );
-}
-
 export default function PlaygroundScreen() {
   const ballX = useSharedValue(PLAYGROUND_W / 2);
   const ballY = useSharedValue(PLAYGROUND_H / 2);
+  const velX = useSharedValue(0);
+  const velY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
 
+  useFrameCallback((frameInfo) => {
+    if (isDragging.value) return;
+    if (velX.value === 0 && velY.value === 0) return;
+
+    const dt = (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+
+    let nx = ballX.value + velX.value * dt;
+    let ny = ballY.value + velY.value * dt;
+
+    if (nx < L_BOUND) {
+      nx = L_BOUND;
+      velX.value = -velX.value * BOUNCE_FRICTION;
+    }
+    if (nx > R_BOUND) {
+      nx = R_BOUND;
+      velX.value = -velX.value * BOUNCE_FRICTION;
+    }
+    if (ny < T_BOUND) {
+      ny = T_BOUND;
+      velY.value = -velY.value * BOUNCE_FRICTION;
+    }
+    if (ny > B_BOUND) {
+      ny = B_BOUND;
+      velY.value = -velY.value * BOUNCE_FRICTION;
+    }
+
+    ballX.value = nx;
+    ballY.value = ny;
+
+    velX.value *= DRAG_FACTOR;
+    velY.value *= DRAG_FACTOR;
+
+    const speed = Math.sqrt(velX.value * velX.value + velY.value * velY.value);
+    if (speed < STOP_THRESHOLD) {
+      velX.value = 0;
+      velY.value = 0;
+    }
+  });
+
   const pan = Gesture.Pan()
     .onBegin(() => {
-      cancelAnimation(ballX);
-      cancelAnimation(ballY);
+      isDragging.value = true;
+      velX.value = 0;
+      velY.value = 0;
       startX.value = ballX.value;
       startY.value = ballY.value;
     })
@@ -63,10 +81,14 @@ export default function PlaygroundScreen() {
       ballY.value = Math.min(Math.max(startY.value + e.translationY, T_BOUND), B_BOUND);
     })
     .onEnd((e) => {
-      const speed = Math.sqrt(e.velocityX ** 2 + e.velocityY ** 2);
-      if (speed >= VELOCITY_THRESHOLD) {
-        throwAxis(ballX, e.velocityX, L_BOUND, R_BOUND);
-        throwAxis(ballY, e.velocityY, T_BOUND, B_BOUND);
+      isDragging.value = false;
+      const speed = Math.sqrt(e.velocityX * e.velocityX + e.velocityY * e.velocityY);
+      if (speed < VELOCITY_THRESHOLD) {
+        velX.value = 0;
+        velY.value = 0;
+      } else {
+        velX.value = e.velocityX;
+        velY.value = e.velocityY;
       }
     });
 
