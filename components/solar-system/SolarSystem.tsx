@@ -1,13 +1,11 @@
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { SOLAR_SYSTEM_PLANETS } from '../../data/planets';
-import { useSolarSystemClock } from '../../hooks/useSolarSystemClock';
 import { Planet } from './Planet';
 import { Sun } from './Sun';
 
 export function SolarSystem() {
   const { width, height } = useWindowDimensions();
-  const time = useSolarSystemClock();
 
   return (
     <View style={styles.container}>
@@ -21,7 +19,7 @@ export function SolarSystem() {
         ]}
       >
         {SOLAR_SYSTEM_PLANETS.map((planet) => (
-          <Planet key={planet.id} config={planet} time={time} />
+          <Planet key={planet.id} config={planet} />
         ))}
         <Sun />
       </View>
