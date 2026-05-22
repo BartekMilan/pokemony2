@@ -1,11 +1,12 @@
-import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
+import { useFrameCallback, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
-export function useSolarSystemClock() {
+export function useSolarSystemClock(speedMultiplier?: SharedValue<number>) {
   const time = useSharedValue(0);
 
   useFrameCallback((frameInfo) => {
     'worklet';
-    time.value += (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+    const multiplier = speedMultiplier?.value ?? 1;
+    time.value += ((frameInfo.timeSincePreviousFrame ?? 16) / 1000) * multiplier;
   });
 
   return time;
