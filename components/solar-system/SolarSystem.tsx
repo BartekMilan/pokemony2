@@ -1,30 +1,30 @@
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
-
-import { SOLAR_SYSTEM_PLANETS } from '../../data/planets';
+import { View, StyleSheet } from 'react-native';
+import Svg, { Defs } from 'react-native-svg';
 import { useSolarSystemClock } from '../../hooks/useSolarSystemClock';
-import { Planet } from './Planet';
-import { Sun } from './Sun';
+import { SOLAR_SYSTEM_PLANETS } from '../../data/planets';
+import { SunGradientDef, SunCircle } from './Sun';
+import { EarthGradientDef, EarthBehindCircle, EarthFrontCircle } from './Planet';
+import { OrbitRingBack, OrbitRingFront } from './OrbitRings';
+import StarBackground from './StarBackground';
 
-export function SolarSystem() {
-  const { width, height } = useWindowDimensions();
+export default function SolarSystem() {
   const time = useSolarSystemClock();
+  const earth = SOLAR_SYSTEM_PLANETS[0];
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.anchor,
-          {
-            left: width / 2,
-            top: height / 2,
-          },
-        ]}
-      >
-        {SOLAR_SYSTEM_PLANETS.map((planet) => (
-          <Planet key={planet.id} config={planet} time={time} />
-        ))}
-        <Sun />
-      </View>
+      <StarBackground />
+      <Svg width={420} height={220}>
+        <Defs>
+          <SunGradientDef />
+          <EarthGradientDef />
+        </Defs>
+        <OrbitRingBack />
+        <EarthBehindCircle config={earth} time={time} />
+        <SunCircle />
+        <OrbitRingFront />
+        <EarthFrontCircle config={earth} time={time} />
+      </Svg>
     </View>
   );
 }
@@ -32,9 +32,8 @@ export function SolarSystem() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a1a',
-  },
-  anchor: {
-    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#050510',
   },
 });

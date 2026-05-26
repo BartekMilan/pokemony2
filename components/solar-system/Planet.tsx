@@ -1,77 +1,69 @@
-import { StyleSheet, View } from 'react-native';
-import Animated, {
-  type SharedValue,
-  useAnimatedStyle,
-} from 'react-native-reanimated';
-
+import Animated, { useAnimatedProps } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
+import { Circle, RadialGradient, Stop } from 'react-native-svg';
 import type { PlanetConfig } from '../../types/planet';
 
-type PlanetProps = {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Plain literals required — Reanimated worklets cannot import module-scope constants
+const SIN_TILT = 0.27564;
+const COS_TILT = 0.96126;
+const ORBIT_RADIUS = 250;
+const SVG_CENTER_X = 210;
+const SVG_CENTER_Y = 110;
+const PERSPECTIVE = 0.30;
+
+interface Props {
   config: PlanetConfig;
   time: SharedValue<number>;
-};
+}
 
-export function Planet({ config, time }: PlanetProps) {
-  const initialAngle = config.initialAngle ?? 0;
-  const initialSpinAngle = config.initialSpinAngle ?? 0;
-  const half = config.size / 2;
-  const markerSize = Math.max(4, config.size * 0.22);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        rotate: `${time.value * config.angularVelocity + initialAngle}rad`,
-      },
-      { 
-        translateX: config.orbitRadius
-      },
-      {
-        rotate: `${time.value * config.spinVelocity + initialSpinAngle}rad`,
-      },
-    ],
-  }));
-
+export function EarthGradientDef() {
   return (
-    <Animated.View
-      style={[
-        styles.planet,
-        animatedStyle,
-        {
-          width: config.size,
-          height: config.size,
-          borderRadius: half,
-          marginLeft: -half,
-          marginTop: -half,
-          backgroundColor: config.color,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.spinMarker,
-          {
-            width: markerSize,
-            height: markerSize,
-            borderRadius: markerSize / 2,
-            top: config.size * 0.12,
-            marginLeft: -markerSize / 2,
-          },
-        ]}
-      />
-    </Animated.View>
+    <RadialGradient id="earthGradient" cx="35%" cy="30%" fx="25%" fy="22%" r="50%">
+      <Stop offset="0%"   stopColor="#e8f4ff" />
+      <Stop offset="18%"  stopColor="#6ab4f5" />
+      <Stop offset="45%"  stopColor="#2979c8" />
+      <Stop offset="72%"  stopColor="#1a5fa0" />
+      <Stop offset="100%" stopColor="#060e1c" />
+    </RadialGradient>
   );
 }
 
-const styles = StyleSheet.create({
-  planet: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    overflow: 'hidden',
-  },
-  spinMarker: {
-    position: 'absolute',
-    left: '50%',
-    backgroundColor: '#FFFFFF',
-  },
-});
+export function EarthBehindCircle({ config, time }: Props) {
+  const animatedProps = useAnimatedProps(() => {
+    'worklet';
+    const angle = time.value * config.angularVelocity + (config.initialAngle ?? 0);
+    const x3d = ORBIT_RADIUS * Math.cos(angle);
+    const z3d = ORBIT_RADIUS * Math.sin(angle);
+    const depth = z3d * COS_TILT;
+    const scale = 1 + (depth / ORBIT_RADIUS) * PERSPECTIVE;
+    const radius = (config.size / 2) * scale;
+    return {
+      cx: SVG_CENTER_X + x3d,
+      cy: SVG_CENTER_Y + (-z3d * SIN_TILT),
+      r: radius,
+      opacity: depth <= 0 ? 1 : 0,
+    };
+  });
+  return <AnimatedCircle animatedProps={animatedProps} fill="url(#earthGradient)" />;
+}
+
+export function EarthFrontCircle({ config, time }: Props) {
+  const animatedProps = useAnimatedProps(() => {
+    'worklet';
+    const angle = time.value * config.angularVelocity + (config.initialAngle ?? 0);
+    const x3d = ORBIT_RADIUS * Math.cos(angle);
+    const z3d = ORBIT_RADIUS * Math.sin(angle);
+    const depth = z3d * COS_TILT;
+    const scale = 1 + (depth / ORBIT_RADIUS) * PERSPECTIVE;
+    const radius = (config.size / 2) * scale;
+    return {
+      cx: SVG_CENTER_X + x3d,
+      cy: SVG_CENTER_Y + (-z3d * SIN_TILT),
+      r: radius,
+      opacity: depth > 0 ? 1 : 0,
+    };
+  });
+  return <AnimatedCircle animatedProps={animatedProps} fill="url(#earthGradient)" />;
+}
